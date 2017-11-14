@@ -63,7 +63,7 @@ def shift_image(image, steer_ang, shift_range):
 
 def random_shadow(img):
 
-    shadow_factor = 0.25
+    shadow_factor = 0.3
     image = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     img_width = image.shape[1]
     img_height = image.shape[0]
@@ -84,14 +84,14 @@ def random_shadow(img):
 
 def PreProcess_Data(image, steering_angle):
     # crop image
-    image = image[65:(image.shape[0] - 25), 0:image.shape[1]]
+    image = image[50:(image.shape[0] - 25), 0:image.shape[1]]
     image = brightness_adjustment(image)
     image, steer_angle = shift_image(image, steering_angle, 100)
 
     if (random.random() <= 0.5):
         image = random_shadow(image)
 
-    if (random.random() <= 0.7):
+    if (random.random() <= 0.5):
         image, steer_angle = flip_image(image, steer_angle)
 
     image = cv2.resize(image, (64, 64), interpolation=cv2.INTER_AREA)
@@ -200,17 +200,17 @@ def NVIDIA_Model():
     model = Sequential()
     #1st Layer - Add a flatten layer)
     model.add(Lambda(lambda x: (x / 255.0) - 0.5, input_shape=(64,64,3)))
-    model.add(Convolution2D(24,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(36,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(48,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(64,3,3,border_mode='valid', activation='elu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(64,3,3,border_mode='valid', activation='elu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(24,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(36,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(48,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(64,3,3,border_mode='valid', activation='relu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(64,3,3,border_mode='valid', activation='relu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
     model.add(Flatten())
-    model.add(Dense(1164, activation='elu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(100, activation='elu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(50, activation='elu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(10, activation='elu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(1, W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(1164, activation='relu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(100, activation='relu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(50, activation='relu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(10, activation='relu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(1)
     return model
 
 nvidia_model = NVIDIA_Model()
@@ -226,7 +226,7 @@ validation_generator = generator(validation_samples, batch_size=128)
 
 history = nvidia_model.fit_generator(train_generator, samples_per_epoch=3*train_samples.shape[0],
                            validation_data=validation_generator,
-                           nb_val_samples=3*validation_samples.shape[0], nb_epoch=30)
+                           nb_val_samples=3*validation_samples.shape[0], nb_epoch=7)
 
 nvidia_model.save('model.h5')
 print(nvidia_model.summary())
