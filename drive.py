@@ -65,7 +65,7 @@ def telemetry(sid, data):
 
         # preprocessing for network
         image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
-        image_array = image_array[65:image_array.shape[0] - 25, 0:image_array.shape[1]]
+        image_array = image_array[50:image_array.shape[0] - 25, 0:image_array.shape[1]]
         image_array = cv2.resize(image_array, (64, 64), interpolation=cv2.INTER_AREA)
 
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))

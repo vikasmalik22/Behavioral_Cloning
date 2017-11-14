@@ -5,13 +5,15 @@ import skimage.transform as sktransform
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Flatten, Dense, Activation, Lambda, Convolution2D, Dropout
 from keras.layers import Cropping2D
 from keras.regularizers import l2
 from keras.optimizers import Adam
 import pandas as pd
 import random
+import math
+import os
 
 samples = []
 
@@ -19,7 +21,7 @@ def Read_Data():
     for i in range(1):
         with open('data/driving_log.csv') as csvfile:
             reader = csv.reader(csvfile)
-            next(reader)
+            # next(reader)
             for line in reader:
                 samples.append(line)
 
@@ -156,36 +158,30 @@ def generator(samples, batch_size=32):
                 # idea borrowed from Vivek Yadav: Sample images such that images with lower angles
                 # have lower probability of getting represented in the dataset. This alleviates
                 # any problems we may ecounter due to model having a bias towards driving straight.
+                if (abs(steering_center) > 0.1):
+                    steering_left = steering_center + correction
+                    steering_right = steering_center - correction
 
-                # keep = 0
-                # while keep == 0:
-                #     if abs(steering_center) < .1:
-                #         val = np.random.uniform()
-                #         if val > threshold:
-                #             keep = 1
-                #     else:
-                #         keep = 1
-                #
-                # if keep:
-                steering_left = steering_center + correction
-                steering_right = steering_center - correction
+                    # img_center = cv2.imread(batch_sample[0].split('\\')[-2] + '/' + batch_sample[0].split('\\')[-1])
+                    # img_left = cv2.imread(batch_sample[1].split('\\')[-2] + '/' + batch_sample[1].split('\\')[-1])
+                    # img_right = cv2.imread(batch_sample[2].split('\\')[-2] + '/' + batch_sample[2].split('\\')[-1])
 
-                img_center = cv2.imread('data/IMG/' + batch_sample[0].split('/')[-1])
-                img_left = cv2.imread('data/IMG/' + batch_sample[1].split('/')[-1])
-                img_right = cv2.imread('data/IMG/' + batch_sample[2].split('/')[-1])
+                    img_center = cv2.imread('data/IMG/' + batch_sample[0].split('/')[-1])
+                    img_left = cv2.imread('data/IMG/' + batch_sample[1].split('/')[-1])
+                    img_right = cv2.imread('data/IMG/' + batch_sample[2].split('/')[-1])
 
-                img_center, steering_center = PreProcess_Data(img_center, steering_center)
-                img_left, steering_left = PreProcess_Data(img_left, steering_left)
-                img_right, steering_right = PreProcess_Data(img_right, steering_right)
+                    img_center, steering_center = PreProcess_Data(img_center, steering_center)
+                    img_left, steering_left = PreProcess_Data(img_left, steering_left)
+                    img_right, steering_right = PreProcess_Data(img_right, steering_right)
 
-                images.append(img_center)
-                steering_angles.append(steering_center)
+                    images.append(img_center)
+                    steering_angles.append(steering_center)
 
-                images.append(img_left)
-                steering_angles.append(steering_left)
+                    images.append(img_left)
+                    steering_angles.append(steering_left)
 
-                images.append(img_right)
-                steering_angles.append(steering_right)
+                    images.append(img_right)
+                    steering_angles.append(steering_right)
 
             X_train = np.array(images)
             y_train = np.array(steering_angles)
@@ -213,20 +209,37 @@ def NVIDIA_Model():
     model.add(Dense(1, activation='tanh'))
     return model
 
-nvidia_model = NVIDIA_Model()
+if os.path.isfile('./model.h5'):
+    nvidia_model = load_model('model.h5')
+else:
+    nvidia_model = NVIDIA_Model()
+
+# nvidia_model = NVIDIA_Model()
 nvidia_model.compile(loss='mse', optimizer=Adam(lr=0.0001))
+
 train_samples = np.array(train_samples)
 validation_samples = np.array(validation_samples)
 
 print(train_samples.shape)
 print(validation_samples.shape)
 
+def calc_samples_per_epoch(array_size, batch_size):
+    num_batches = array_size / batch_size
+    samples_per_epoch = math.ceil(num_batches)
+    samples_per_epoch = samples_per_epoch * batch_size
+    return samples_per_epoch
+
+BATCH_SIZE = 128
+
+samples_per_epoch = calc_samples_per_epoch((len(train_samples)*3), BATCH_SIZE)
+nb_val_samples = calc_samples_per_epoch((len(validation_samples)*3), BATCH_SIZE)
+
 train_generator = generator(train_samples, batch_size=128)
 validation_generator = generator(validation_samples, batch_size=128)
 
-history = nvidia_model.fit_generator(train_generator, samples_per_epoch=3*train_samples.shape[0],
+history = nvidia_model.fit_generator(train_generator, samples_per_epoch=samples_per_epoch,
                            validation_data=validation_generator,
-                           nb_val_samples=3*validation_samples.shape[0], nb_epoch=7)
+                           nb_val_samples=nb_val_samples, nb_epoch=10)
 
 nvidia_model.save('model.h5')
 print(nvidia_model.summary())
