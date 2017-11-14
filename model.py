@@ -210,7 +210,7 @@ def NVIDIA_Model():
     model.add(Dense(100, activation='relu', W_regularizer=l2(0.0001), init='normal'))
     model.add(Dense(50, activation='relu', W_regularizer=l2(0.0001), init='normal'))
     model.add(Dense(10, activation='relu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(1)
+    model.add(Dense(1, activation='tanh')
     return model
 
 nvidia_model = NVIDIA_Model()
