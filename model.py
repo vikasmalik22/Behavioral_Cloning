@@ -224,9 +224,9 @@ print(validation_samples.shape)
 train_generator = generator(train_samples, batch_size=128)
 validation_generator = generator(validation_samples, batch_size=128)
 
-history = nvidia_model.fit_generator(train_generator, samples_per_epoch=3*train_samples.shape[0],
+history = nvidia_model.fit_generator(train_generator, samples_per_epoch=train_samples.shape[0],
                            validation_data=validation_generator,
-                           nb_val_samples=3*validation_samples.shape[0], nb_epoch=10)
+                           nb_val_samples=validation_samples.shape[0], nb_epoch=20)
 
 nvidia_model.save('model.h5')
 print(nvidia_model.summary())
