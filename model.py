@@ -21,7 +21,7 @@ def Read_Data():
     for i in range(1):
         with open('data/driving_log.csv') as csvfile:
             reader = csv.reader(csvfile)
-            # next(reader)
+            next(reader)
             for line in reader:
                 samples.append(line)
 
