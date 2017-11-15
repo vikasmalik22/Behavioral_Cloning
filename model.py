@@ -26,9 +26,9 @@ def Read_Data():
                 samples.append(line)
 
 
-def brightness_adjustment(image, bval=None):
+def brightness_adjustment(img, bval=None):
     # convert to HSV so that its easy to adjust brightness
-    new_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    # new_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
 
     # randomly generate the brightness reduction factor
     # Add a constant so that it prevents the image from being completely dark
@@ -38,12 +38,9 @@ def brightness_adjustment(image, bval=None):
         random_bright = .25 + np.random.uniform()
 
     # Apply the brightness reduction to the V channel
-    new_img[:, :, 2] = new_img[:, :, 2] * random_bright
+    img[:, :, 2] = img[:, :, 2] * random_bright
 
-    # convert to RGB again
-    new_img = cv2.cvtColor(new_img, cv2.COLOR_HSV2RGB)
-
-    return new_img
+    return img
 
 def flip_image(image, steering_angle):
     image = cv2.flip(image,1)
@@ -63,10 +60,9 @@ def shift_image(image, steer_ang, shift_range):
     return image_tr, steer_ang
 
 
-def random_shadow(img):
+def random_shadow(image):
 
     shadow_factor = 0.3
-    image = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     img_width = image.shape[1]
     img_height = image.shape[0]
     x = random.randint(0, img_width)
@@ -81,10 +77,11 @@ def random_shadow(img):
         y = img_height - y
 
     image[y:y + height, x:x + width, 2] = image[y:y + height, x:x + width, 2] * shadow_factor
-    image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
     return image
 
 def PreProcess_Data(image, steering_angle):
+    #first change image from BGR to HSV
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     # crop image
     image = image[50:(image.shape[0] - 25), 0:image.shape[1]]
     image = brightness_adjustment(image)
@@ -155,10 +152,14 @@ def generator(samples, batch_size=32):
                 correction = 0.25  # this is a parameter to tune
                 steering_center = float(batch_sample[3])
 
-                # idea borrowed from Vivek Yadav: Sample images such that images with lower angles
-                # have lower probability of getting represented in the dataset. This alleviates
-                # any problems we may ecounter due to model having a bias towards driving straight.
-                if (abs(steering_center) > 0.1):
+                take = 0
+                if (abs(steering_center) < 0.1):
+                    if (random.random() >= 0.7):
+                        take = 1
+                else:
+                    take = 1
+
+                if take == 1:
                     steering_left = steering_center + correction
                     steering_right = steering_center - correction
 
@@ -196,17 +197,25 @@ def NVIDIA_Model():
     model = Sequential()
     #1st Layer - Add a flatten layer)
     model.add(Lambda(lambda x: (x / 255.0) - 0.5, input_shape=(64,64,3)))
-    model.add(Convolution2D(24,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(36,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(48,5,5,border_mode='valid', activation='relu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(64,3,3,border_mode='valid', activation='relu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
-    model.add(Convolution2D(64,3,3,border_mode='valid', activation='relu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Convolution2D(24,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(0.5))
+    model.add(Convolution2D(36,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(0.5))
+    model.add(Convolution2D(48,5,5,border_mode='valid', activation='elu', subsample=(2,2), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(0.5))
+    model.add(Convolution2D(64,3,3,border_mode='valid', activation='elu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(0.5))
+    model.add(Convolution2D(64,3,3,border_mode='valid', activation='elu', subsample=(1,1), W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(0.5))
     model.add(Flatten())
-    model.add(Dense(1164, activation='relu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(100, activation='relu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(50, activation='relu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(10, activation='relu', W_regularizer=l2(0.0001), init='normal'))
-    model.add(Dense(1, activation='tanh'))
+    model.add(Dense(1164, activation='elu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(.5))
+    model.add(Dense(100, activation='elu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(.4))
+    model.add(Dense(50, activation='elu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dropout(.25))
+    model.add(Dense(10, activation='elu', W_regularizer=l2(0.0001), init='normal'))
+    model.add(Dense(1))
     return model
 
 if os.path.isfile('./model.h5'):
@@ -234,12 +243,12 @@ BATCH_SIZE = 128
 samples_per_epoch = calc_samples_per_epoch((len(train_samples)*3), BATCH_SIZE)
 nb_val_samples = calc_samples_per_epoch((len(validation_samples)*3), BATCH_SIZE)
 
-train_generator = generator(train_samples, batch_size=128)
-validation_generator = generator(validation_samples, batch_size=128)
+train_generator = generator(train_samples, BATCH_SIZE)
+validation_generator = generator(validation_samples, BATCH_SIZE)
 
 history = nvidia_model.fit_generator(train_generator, samples_per_epoch=samples_per_epoch,
                            validation_data=validation_generator,
-                           nb_val_samples=nb_val_samples, nb_epoch=10)
+                           nb_val_samples=nb_val_samples, nb_epoch=1)
 
 nvidia_model.save('model.h5')
 print(nvidia_model.summary())
