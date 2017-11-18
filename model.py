@@ -1,22 +1,20 @@
 import csv
 import cv2
 import numpy as np
-import skimage.transform as sktransform
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 from keras.models import Sequential, load_model
-from keras.layers import Flatten, Dense, Activation, Lambda, Convolution2D, Dropout
-from keras.layers import Cropping2D
+from keras.layers import Flatten, Dense, Lambda, Convolution2D, Dropout
 from keras.regularizers import l2
 from keras.optimizers import Adam
-import pandas as pd
 import random
 import math
 import os
 
 samples = []
 
+# Read the data from the csv file
 def Read_Data():
     for i in range(1):
         with open('data/driving_log.csv') as csvfile:
@@ -25,7 +23,7 @@ def Read_Data():
             for line in reader:
                 samples.append(line)
 
-
+# Augmentation Function for brightness adjustment
 def brightness_adjustment(img, bval=None):
     # convert to HSV so that its easy to adjust brightness
     # new_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
@@ -42,12 +40,13 @@ def brightness_adjustment(img, bval=None):
 
     return img
 
+# Augmentation Function for flipping the image and changing steering angle
 def flip_image(image, steering_angle):
     image = cv2.flip(image,1)
     steering_angle = -1 * steering_angle
     return image, steering_angle
 
-
+# Augmentation function for shifting image and steering angle
 def shift_image(image, steer_ang, shift_range):
     # Translation
     rows, cols = image.shape[0:2]
@@ -59,7 +58,7 @@ def shift_image(image, steer_ang, shift_range):
 
     return image_tr, steer_ang
 
-
+# Augmentation function to create random shadow
 def random_shadow(image):
 
     shadow_factor = 0.3
@@ -79,6 +78,7 @@ def random_shadow(image):
     image[y:y + height, x:x + width, 2] = image[y:y + height, x:x + width, 2] * shadow_factor
     return image
 
+# Pre-Processing Pipeline function for image data
 def PreProcess_Data(image, steering_angle):
     #first change image from BGR to HSV
     image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -96,44 +96,7 @@ def PreProcess_Data(image, steering_angle):
     image = cv2.resize(image, (64, 64), interpolation=cv2.INTER_AREA)
     return image, steer_angle
 
-# def process_image(image):
-#     '''
-#     :param image: Input image
-#     :return: output image with randomly adjusted brightness
-#     '''
-#
-#     # convert to HSV so that its easy to adjust brightness
-#     new_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-#
-#     # randomly generate the brightness reduction factor
-#     # Add a constant so that it prevents the image from being completely dark
-#     random_bright = .25+np.random.uniform()
-#
-#     # Apply the brightness reduction to the V channel
-#     new_img[:,:,2] = new_img[:,:,2]*random_bright
-#
-#     # convert to RGB again
-#     new_img = cv2.cvtColor(new_img,cv2.COLOR_HSV2RGB)
-#
-#     # random shadow - full height, random left/right side, random darkening
-#     h, w = new_img.shape[0:2]
-#     mid = np.random.randint(0, w)
-#     factor = np.random.uniform(0.6, 0.8)
-#     if np.random.rand() > .5:
-#         new_img[:, 0:mid, 0] = (new_img[:, 0:mid, 0] * factor).astype(np.int32)
-#     else:
-#         new_img[:, mid:w, 0] = (new_img[:, mid:w, 0] * factor).astype(np.int32)
-#
-#     # randomly shift horizon
-#     h, w, _ = new_img.shape
-#     horizon = 2 * h / 5
-#     v_shift = np.random.randint(-h / 8, h / 8)
-#     pts1 = np.float32([[0, horizon], [w, horizon], [0, h], [w, h]])
-#     pts2 = np.float32([[0, horizon + v_shift], [w, horizon + v_shift], [0, h], [w, h]])
-#     M = cv2.getPerspectiveTransform(pts1, pts2)
-#     new_img = cv2.warpPerspective(new_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-#     return new_img.astype(np.uint8)
-
+# Generator function
 def generator(samples, batch_size=32):
     num_samples = samples.shape[0]
     threshold = 1
@@ -144,13 +107,12 @@ def generator(samples, batch_size=32):
             images = []
             steering_angles = []
             for batch_sample in batch_samples:
-                # filename = batch_sample[i].split('\\')[-1]
-                # current_path = batch_sample[i].split('\\')[-2] + '/' + filename
-                # filename = batch_sample[i].split('/')[-1]
-                # current_path = 'data/IMG/' + filename
-                # image = cv2.imread(current_path)
-                correction = 0.25  # this is a parameter to tune
+                correction = 0.25  # correction angle for steering left and right images
                 steering_center = float(batch_sample[3])
+
+                # Since the images are biased towards the center steering angle values
+                # we will randonmly take the values for center images so that the network
+                # doesn't become bias in learning
 
                 take = 0
                 if (abs(steering_center) < 0.1):
@@ -188,11 +150,14 @@ def generator(samples, batch_size=32):
             y_train = np.array(steering_angles)
             yield sklearn.utils.shuffle(X_train, y_train)
 
-# Step 1
+# Step 1 - Get the data
 Read_Data()
 print(len(samples))
+
+#Step 2 - Split the data b/w training and validation in 80 and 20 ratio
 train_samples, validation_samples = train_test_split(samples, test_size=0.2)
 
+# NVIDIA Based Model
 def NVIDIA_Model():
     model = Sequential()
     #1st Layer - Add a flatten layer)
@@ -218,31 +183,40 @@ def NVIDIA_Model():
     model.add(Dense(1))
     return model
 
+#Step 3
+# If the model file doesn't exist call the NVIDIA model else use the saved model
 if os.path.isfile('./model.h5'):
     nvidia_model = load_model('model.h5')
 else:
     nvidia_model = NVIDIA_Model()
 
-# nvidia_model = NVIDIA_Model()
+# Compile the model
 nvidia_model.compile(loss='mse', optimizer=Adam(lr=0.0001))
 
+# Convert the training and validation samples into array
 train_samples = np.array(train_samples)
 validation_samples = np.array(validation_samples)
 
 print(train_samples.shape)
 print(validation_samples.shape)
 
+# Calculation for Samples per Epoch
 def calc_samples_per_epoch(array_size, batch_size):
     num_batches = array_size / batch_size
     samples_per_epoch = math.ceil(num_batches)
     samples_per_epoch = samples_per_epoch * batch_size
     return samples_per_epoch
 
+# Hyperparameter Batch Size
 BATCH_SIZE = 128
 
+# Get the Samples per epoch for training and validation
+# Since we are adding also the left and right images for training and validating
+# we multiplied the samples by 3
 samples_per_epoch = calc_samples_per_epoch((len(train_samples)*3), BATCH_SIZE)
 nb_val_samples = calc_samples_per_epoch((len(validation_samples)*3), BATCH_SIZE)
 
+# Create the generator for training and validation
 train_generator = generator(train_samples, BATCH_SIZE)
 validation_generator = generator(validation_samples, BATCH_SIZE)
 
@@ -250,5 +224,8 @@ history = nvidia_model.fit_generator(train_generator, samples_per_epoch=samples_
                            validation_data=validation_generator,
                            nb_val_samples=nb_val_samples, nb_epoch=1)
 
+# Save the model
 nvidia_model.save('model.h5')
+
+# Get the summary of the model
 print(nvidia_model.summary())
