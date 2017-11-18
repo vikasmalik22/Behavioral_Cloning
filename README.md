@@ -192,3 +192,13 @@ As on the way I did lot of silly mistakes where I forgot to add pre-processing s
 After 50 epochs the training loss is 0.0435 and validation loss 0.0420.
 
 **Note:** The images and data exploration for making this readme file is done using Visualization.ipynb notebook.
+
+## Results
+
+The car manages to drive just fine on both tracks pretty much endlessly. 
+
+[Track 1 Video](https://youtu.be/kyWsRG3lYdM)
+
+Model wasn't trained using the data from Track2 but it still managed to run on it.
+
+[Track 2 Video](https://youtu.be/XW98zZlZcWQ)
