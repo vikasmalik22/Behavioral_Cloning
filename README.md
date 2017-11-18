@@ -39,7 +39,7 @@ Following are the three different camera images from the dataset:
 ![image1](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG1.PNG)
 
 The below chart shows the different steering angles and number of angle values in the dataset per steering angle.
-![image2] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG2.PNG)
+![img2](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG2.PNG)
 
 From the above chart we can observe that the data is biased towards the straight/center and left values. And most of these values are close to 0. Since, this data is biased we cannot rely on it to train our model. We need to do pre-processing to train our model correctly.
 
@@ -143,28 +143,39 @@ As a part of this project Udacity provided the sample data for the track 1. I fi
 In training mode, the simulator produces three images per frame recording with 3 different cameras mounted on center, left and right in the front side of the car. The simulator also produces a driving_log.csv file which contains the file path for each camera as well as information about the steering measurement, throttle, brake and speed of the vehicle.
 
 For this project, recording recoveries from the sides of the road back to center is effective. But it is also possible to use all three camera images to train the model. My model loads the images from all the camera views for each frame and steering angle and does an adjustment of +0.25 to left camera image and -0.25 to the right camera image view. This way we feed the left and right camera images to the model as if they were coming from the center camera. This way, we teach the model how to steer if the car drifts off to the left or the right.
-![image4](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG4.PNG)
 
-![image5] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG5.PNG)
+![img4](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG4.PNG)
+
+![img5](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG5.PNG)
 
 Images produced by the simulator in training mode are 160x320, and therefore require pre-processing prior to being fed to the CNN because it expects input images to be size 64x64 (the original input image size which nvidia model expects to be 66x200). To achieve this, the bottom 25 pixels and the top 50 pixels (although this number later changed) are cropped from the image and it is then resized to 64x64 at the end of PreProcess_Data function step. As NVIDIA paper suggested to convert images from RGB to YUV, I instead choose images to be converted into HSV format since the data augmentation or pre-processing pipeline I used was based on HSV color format. Because drive.py uses the same CNN model to predict steering angles in real time, it requires the same image pre-processing (Note, however: using cv2.imread, as model.py does, reads images in BGR, while images received by drive.py from the simulator are RGB, and thus require different color space conversion). This is achieved inside the method called PreProcess_Data in model.py and in drive.py we changed images from RGB2HSV, cropped them and then resized them to 64x64.
 
 The below pciture shows the image after initial cropping of 50 from top and 25 from bottom.
-![image6] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG6.PNG)
+
+![img6](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG6.PNG)
 
 To reduce the model's tendency to overfit to the conditions of the test track, images are augmented using different techniques before being fed to the CNN. 
 
 Following are the augmentation techniques I applied on the training images
 1. **First augmentation** consists of applying random brightness adjustment implemented using function brightness_adjustment. This helps in simulating conditions for day and night. 
-![image7] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG7.PNG)
+
+![img7](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG7.PNG)
+
 2. **Second augmentation** consists of applying random horizon shift implemented using function shift_image. Using this we tried to simulate the effect of car being at different positions on the road, and adding an offset corresponding to the shift to the steering angle. The images were also shifted vertically by a random number to simulate the effect of driving up or down the slope. 
-![image8] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG8.PNG)
+
+![img8](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG8.PNG)
+
 3. **Thirdly,** I used shadow augmentation implemented using function random_shadow, where random shadows are cast across the image. This is implemented by choosing random points and shading all points on one side of the image. The function is called randomly during pre-processing. 
-![image9] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG9.PNG)
+
+![img9](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG9.PNG)
+
 4. **Fourthly**, I flipped the images randomly implemented using function flip_image, which flips the images and steering angle values which helps in simulating the data as if we are driving in the opposite direction. 
-![image10] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG10.PNG)
+
+![img10](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG10.PNG)
+
 5. Finally resizing the image to 64x64 before feeding it to the model. 
-![image11] (https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG11.PNG)
+
+![img11](https://github.com/vikasmalik22/Behavioral_Cloning/blob/master/Sample_Images/IMG11.PNG)
 
 Out of the 8036 samples after randomly splitting them between training and validation samples in 80 & 20%.
 Train Samples: 6428
